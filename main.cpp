@@ -58,11 +58,18 @@ printf("Memory to file\n");
 		usage(argv[0]);
 		exit(-1);
 	}
-	unsigned char* pBuffer = f2m(szInFile);
+	long len;
+	unsigned char* pBuffer = f2m(szInFile, &len);
 	if (!pBuffer) {
         exit(-1);
     }
 	//convert to hex file
+	char outfile[256];
+	sprintf(outfile, "%s.bin", szInFile);
+	FILE* fpout = fopen(outfile, "wb");
+	fwrite(pBuffer, 1, len, fpout);
+	fclose(fpout);
+	printf("Convert file successfully %s\n", outfile);
 	free(pBuffer);
 #endif
 
