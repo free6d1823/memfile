@@ -1,6 +1,6 @@
 PROJECT_ROOT = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
-OBJS = main.o md5sum.o
+OBJS = main.o md5sum.o common.o
 ifeq ($(M2F), 1)
 TARGET_NAME = m2f
 OBJS += m2f.o
@@ -30,5 +30,5 @@ $(TARGET_NAME):	$(OBJS)
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
 
 clean:
-	rm -fr  $(OBJS) 
-	rm $(TARGET_NAME)
+	rm -fr  *.o 
+	rm m2f f2m 

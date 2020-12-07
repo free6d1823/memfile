@@ -27,20 +27,38 @@ void usage(char* name)
 	printf("\t filename         file to be converted\n\n");
 #endif	
 }
-
+#define char2i(d) (d>= '0' && d <= '9')?(d-'0'): \
+					 ( (d >= 'a' && d<= 'f')?(d-'a'+10): \
+                       (d >= 'A' && d<= 'F')?(d-'A'+10):0 )
+unsigned long long hex2long(char* hex)
+{
+	unsigned long long val = 0;
+	char* p;
+	bool start = false;
+	for(p=hex; *p != 0; p++) {
+		if (!start) {
+			if (*p == 'x' || *p == 'X')
+				start=true;
+			continue;
+		}
+		val <<= 4;
+		val += char2i(*p); 
+	}
+	return val;
+}
 int main(int argc, char *argv[])
 {
 	FILE* fpIn = NULL;
 	FILE* fpOut = NULL;
 	char* szInFile = NULL;
-	char* baseaddress = NULL;
+	off_t baseaddress = 0;//BASE_FILE;
 	char ch;
 
 	while ((ch = getopt(argc, argv, "b:h?"))!= -1)
 	{
 		switch (ch) {
 		case 'b':
-			baseaddress = optarg;
+			baseaddress = hex2long(optarg);
 			break;
 		case 'h':
 		case '?':
@@ -50,8 +68,7 @@ int main(int argc, char *argv[])
 
 	}
 #ifdef M2F
-printf("Memory to file\n");	
-
+	m2f(baseaddress);
 #else
     szInFile = argv[optind];
 	if (!szInFile) {
