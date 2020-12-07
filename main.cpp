@@ -8,8 +8,8 @@
 #include "common.h"
 
 using namespace std;
-static int bytes_per_row = 10;
-#define BASE_ADDRESS	0x9F000000
+#define MEMORY_BASE	0x60000000
+#define BASE_ADDRESS	0x3F000000
 #define BASE_FILE		(BASE_ADDRESS + 1024)
 
 void usage(char* name)
@@ -21,10 +21,12 @@ void usage(char* name)
 	printf("\t                  default is 0x%x\n\n", BASE_ADDRESS);
 #else
 	printf("\tCreate hex file to be loaded into memory\n\n");
-	printf("Usage: %s [-b base_address] filename\n", name);
-    printf("\t -b base_address  base physical address \n");
-    printf("\t                  default is 0x%x\n", BASE_ADDRESS);
-	printf("\t filename         file to be converted\n\n");
+	printf("Usage: %s [-b base_address] [-x<n>] filename\n", name);
+    printf("\t -b offset_address   physical address offset\n");
+    printf("\t                     default is 0x%x\n", BASE_ADDRESS);
+	printf("\t -x<n>           convert to hex format\n");
+	printf("\t                 n = 0 binary, 1 32-bit-heximal format, 2 interleaved hex format\n");
+	printf("\t filename        file to be converted\n\n");
 #endif	
 }
 #define char2i(d) (d>= '0' && d <= '9')?(d-'0'): \
@@ -53,12 +55,15 @@ int main(int argc, char *argv[])
 	char* szInFile = NULL;
 	off_t baseaddress = 0;//BASE_FILE;
 	char ch;
-
-	while ((ch = getopt(argc, argv, "b:h?"))!= -1)
+	int hexMode = 0;
+	while ((ch = getopt(argc, argv, "x:b:h?"))!= -1)
 	{
 		switch (ch) {
 		case 'b':
 			baseaddress = hex2long(optarg);
+			break;
+		case 'x':
+			hexMode = atoi(optarg);
 			break;
 		case 'h':
 		case '?':
@@ -70,26 +75,32 @@ int main(int argc, char *argv[])
 #ifdef M2F
 	m2f(baseaddress);
 #else
-    szInFile = argv[optind];
+	szInFile = argv[optind];
 	if (!szInFile) {
 		usage(argv[0]);
 		exit(-1);
 	}
 	long len;
-	unsigned char* pBuffer = f2m(szInFile, &len);
+	char* pBuffer = f2m(szInFile, &len);
 	if (!pBuffer) {
-        exit(-1);
-    }
+        	exit(-1);
+	}
 	//convert to hex file
-	char outfile[256];
-	sprintf(outfile, "%s.bin", szInFile);
-	FILE* fpout = fopen(outfile, "wb");
-	fwrite(pBuffer, 1, len, fpout);
-	fclose(fpout);
-	printf("Convert file successfully %s\n", outfile);
+	if (hexMode == 0) {
+		char outfile[256];
+		sprintf(outfile, "%s.bin", szInFile);
+		FILE* fpout = fopen(outfile, "wb");
+		fwrite(pBuffer, 1, len, fpout);
+		fclose(fpout);
+	} else if (hexMode == 1) {
+		bin2hex(pBuffer, len, baseaddress, szInFile);
+	} else if (hexMode == 2) {
+                bin2hex2(pBuffer, len, baseaddress, szInFile);
+	}
+	printf("Converting file successfully.\n\n");
 	free(pBuffer);
 #endif
 
-    return 0;
+	return 0;
 }
 
