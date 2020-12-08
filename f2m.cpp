@@ -9,7 +9,7 @@
 #include "common.h"
 
 /* return the converted memory, NULL if error */
-char* f2m(const char* infile, long* memlen)
+char* f2m(const char* infile, long* memlen, long foffset)
 {
 	struct stat sb;
 	if (lstat(infile, &sb) == -1) {
@@ -19,11 +19,6 @@ char* f2m(const char* infile, long* memlen)
 	printf(" mod= %lo\n", (unsigned long) sb.st_mode);
 	printf(" UID=%ld, GID=%ld\n", (long)sb.st_uid, (long) sb.st_gid);
 
-	char md5[64] = {0};
-	if(0 == md5sum(infile, md5)){
-		printf("MD5=%s\n", md5);
-	}
-	
 	FILE* fpin = fopen(infile, "rb");
 	if (!fpin) {
 		fprintf(stderr, "Error open file %s\n", infile);
@@ -36,9 +31,14 @@ char* f2m(const char* infile, long* memlen)
 		return NULL;
 	}
 	printf("File length= %ld bytes\n", length);
-	char* pBuffer = (char*) malloc(length + FILE_OFFSET);
+    char md5[64] = {0};
+    if(0 == md5sum(infile, md5)){
+        printf("MD5=%s\n", md5);
+    }
+
+	*memlen = length + foffset;
+	char* pBuffer = (char*) malloc(*memlen);
 	char* p = pBuffer;
-	*memlen = length + FILE_OFFSET;
 	memset(p,0,*memlen);
 	sprintf(p,  "%s\n" /*file name */
 				"%lo\n" /* mode*/
@@ -49,7 +49,7 @@ char* f2m(const char* infile, long* memlen)
 				(long)sb.st_uid, (long) sb.st_gid,
 				length,
 				md5);
-	p = pBuffer + FILE_OFFSET;
+	p = pBuffer + foffset;
 	fseek(fpin, 0, SEEK_SET);
 	long read =  fread(p, 1, length, fpin);
 	if( length != read ){

@@ -1,7 +1,13 @@
 PROJECT_ROOT = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+M2F=0
 
 OBJS = main.o md5sum.o common.o
 ifeq ($(M2F), 1)
+#for arm64
+CROSS_COMPILE=aarch64-linux-gnu-
+CC :=$(CROSS_COMPILE)gcc
+CXX :=$(CROSS_COMPILE)g++
+
 TARGET_NAME = m2f
 OBJS += m2f.o
 CFLAGS = -DM2F
@@ -19,6 +25,7 @@ LIB_LINK =
 LFLAGS += $(LIB_PATH) $(LIB_LINK)  
  
 all:	$(TARGET_NAME)
+	cp $(TARGET_NAME) ./bin/.
 
 $(TARGET_NAME):	$(OBJS) 
 	$(CXX) $^ -o $@ $(LFLAGS)	
@@ -30,5 +37,5 @@ $(TARGET_NAME):	$(OBJS)
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
 
 clean:
-	rm -fr  *.o 
-	rm m2f f2m 
+	rm -f *.o 
+	rm -f $(TARGET_NAME) 

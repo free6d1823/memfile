@@ -8,26 +8,47 @@
 #include "common.h"
 
 using namespace std;
-#define MEMORY_BASE	0x60000000
-#define BASE_ADDRESS	0x3F000000
-#define BASE_FILE		(BASE_ADDRESS + 1024)
+#define SE1000
+#ifdef SE1000
+#define MEMORY_BASE	    0x000060000000L
+#define BASE_ADDRESS	0x00003F000000L
+#else
+//PC simulation
+#define MEMORY_BASE 0x0000000
+#define BASE_ADDRESS    0x000000
+#endif
+
+#define FILE_OFFSET     0x1000
+#define BASE_FILE		(BASE_ADDRESS + FILE_OFFSET)
 
 void usage(char* name)
 {
 #ifdef M2F
 	printf("\tExtract file from physical memory.\n\n");
-	printf("Usage: %s [-b base_address]\n", name);
-	printf("\t -b base_address  base physical address \n");
-	printf("\t                  default is 0x%x\n\n", BASE_ADDRESS);
+	printf("Usage: %s [-b base_address] [-f offset] \n", name);
+	printf("\t -b base_address  physical address \n");
+	printf("\t                  default is 0x%lx\n\n", (MEMORY_BASE+ BASE_ADDRESS));
+	printf("\t -f offset        offset of the file content.\n");
+	printf("\t                  default is 0x%x\n\n", FILE_OFFSET);
 #else
 	printf("\tCreate hex file to be loaded into memory\n\n");
 	printf("Usage: %s [-b base_address] [-x<n>] filename\n", name);
-    printf("\t -b offset_address   physical address offset\n");
-    printf("\t                     default is 0x%x\n", BASE_ADDRESS);
-	printf("\t -x<n>           convert to hex format\n");
-	printf("\t                 n = 0 binary, 1 32-bit-heximal format, 2 interleaved hex format\n");
-	printf("\t filename        file to be converted\n\n");
+    printf("  -b base_address  base address relative to RTL node\n");
+    printf("                   default is 0x%0lx\n", BASE_ADDRESS);
+	printf("  -f offset        offset of the start of file content.\n");
+	printf("                   default is 0x%x\n", FILE_OFFSET);
+	printf("  -x<n>            convert to hex format\n");
+	printf("                   n = 0(bin), 1(32-bit-hex), 2(16-16-hex)\n");
+	printf("  filename         file to be converted\n\n");
 #endif	
+	printf("Layout in memory:\n");
+	printf(" [base_address]    file description\n");
+	printf("                   <file name>\n");
+	printf("                   <file mode>\n");
+	printf("                   <user ID>, <group ID>\n");
+	printf("                   <bytes of file size in decimal>\n");
+	printf("                   <MD5 checksum>\n");
+	printf(" [+offset]         file content\n\n");
 }
 #define char2i(d) (d>= '0' && d <= '9')?(d-'0'): \
 					 ( (d >= 'a' && d<= 'f')?(d-'a'+10): \
@@ -46,6 +67,9 @@ unsigned long long hex2long(char* hex)
 		val <<= 4;
 		val += char2i(*p); 
 	}
+	if(!start) { //not hex, try decimal
+		val = atoi(hex);
+	}
 	return val;
 }
 int main(int argc, char *argv[])
@@ -53,12 +77,21 @@ int main(int argc, char *argv[])
 	FILE* fpIn = NULL;
 	FILE* fpOut = NULL;
 	char* szInFile = NULL;
-	off_t baseaddress = 0;//BASE_FILE;
+#ifdef M2F
+	long long baseaddress = (MEMORY_BASE+BASE_ADDRESS);//physical start
+#else	
+	off_t baseaddress = BASE_ADDRESS; //RTL start
+#endif	
+	off_t offset = FILE_OFFSET;
+
 	char ch;
 	int hexMode = 0;
-	while ((ch = getopt(argc, argv, "x:b:h?"))!= -1)
+	while ((ch = getopt(argc, argv, "f:x:b:h?"))!= -1)
 	{
 		switch (ch) {
+		case 'f':
+			offset = hex2long(optarg);
+			break;
 		case 'b':
 			baseaddress = hex2long(optarg);
 			break;
@@ -73,7 +106,7 @@ int main(int argc, char *argv[])
 
 	}
 #ifdef M2F
-	m2f(baseaddress);
+	m2f(baseaddress, offset);
 #else
 	szInFile = argv[optind];
 	if (!szInFile) {
@@ -81,7 +114,7 @@ int main(int argc, char *argv[])
 		exit(-1);
 	}
 	long len;
-	char* pBuffer = f2m(szInFile, &len);
+	char* pBuffer = f2m(szInFile, &len, (long) offset);
 	if (!pBuffer) {
         	exit(-1);
 	}
@@ -95,7 +128,7 @@ int main(int argc, char *argv[])
 	} else if (hexMode == 1) {
 		bin2hex(pBuffer, len, baseaddress, szInFile);
 	} else if (hexMode == 2) {
-                bin2hex2(pBuffer, len, baseaddress, szInFile);
+		bin2hex2(pBuffer, len, baseaddress, szInFile);
 	}
 	printf("Converting file successfully.\n\n");
 	free(pBuffer);
